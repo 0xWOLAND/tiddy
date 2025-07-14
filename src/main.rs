@@ -92,7 +92,7 @@ fn run_typing_test(
                         restart_timer = None;
                     }
                     (KeyCode::BackTab, _) => app.cycle_color_scheme(),
-                    (KeyCode::CapsLock, KeyModifiers::SHIFT) => app.cycle_cursor_style(),
+                    (KeyCode::Char('`'), KeyModifiers::SHIFT) => app.cycle_cursor_style(),
                     (KeyCode::Char(ch), KeyModifiers::NONE) => {
                         if app.is_done() {
                             restart_timer = None;
