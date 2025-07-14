@@ -127,7 +127,7 @@ impl App {
             // Count only characters that were actually typed (not '#')
             let mut typed_count = 0;
             let mut correct_count = 0;
-            
+
             for (i, input_ch) in self.input.chars().enumerate() {
                 if input_ch != '#' {
                     typed_count += 1;
@@ -138,7 +138,7 @@ impl App {
                     }
                 }
             }
-            
+
             if typed_count == 0 {
                 100.0
             } else {
