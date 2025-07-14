@@ -1,7 +1,4 @@
-use ratatui::{
-    prelude::*,
-    widgets::*,
-};
+use ratatui::{prelude::*, widgets::*};
 
 pub struct ColorScheme {
     pub text: Color,
@@ -90,33 +87,31 @@ pub fn render_typing_test<B: Backend>(
     restart_countdown: Option<u64>,
 ) {
     let scheme = ColorScheme::get(scheme_index);
-    
+
     // Create centered layout
     let area = frame.size();
     let content_width = (area.width.min(80)).max(40); // Max 80 chars, min 40 chars
     let horizontal_margin = (area.width.saturating_sub(content_width)) / 2;
-    
+
     let vertical_chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(2)
         .constraints([
-            Constraint::Length(1),  // Title
-            Constraint::Length(2),  // Spacing
-            Constraint::Min(5),     // Main content
-            Constraint::Length(2),  // Spacing
-            Constraint::Length(1),  // Help
+            Constraint::Length(1), // Title
+            Constraint::Length(2), // Spacing
+            Constraint::Min(5),    // Main content
+            Constraint::Length(2), // Spacing
+            Constraint::Length(1), // Help
         ])
         .split(area);
 
     let centered_chunks: Vec<Rect> = vertical_chunks
         .iter()
-        .map(|&chunk| {
-            Rect {
-                x: chunk.x + horizontal_margin,
-                y: chunk.y,
-                width: content_width,
-                height: chunk.height,
-            }
+        .map(|&chunk| Rect {
+            x: chunk.x + horizontal_margin,
+            y: chunk.y,
+            width: content_width,
+            height: chunk.height,
         })
         .collect();
 
@@ -145,7 +140,10 @@ pub fn render_typing_test<B: Backend>(
 
     // Help
     let help = if let Some(countdown) = restart_countdown {
-        format!("Auto-restart in {}s (any key to cancel) | Ctrl+R restart | Esc quit", countdown)
+        format!(
+            "Auto-restart in {}s (any key to cancel) | Ctrl+R restart | Esc quit",
+            countdown
+        )
     } else if is_done {
         "Test complete | Ctrl+R restart | Esc quit".to_string()
     } else {
@@ -185,7 +183,10 @@ fn create_text_spans<'a>(
             spans.push(Span::styled(ch.to_string(), Style::default().fg(color)));
         } else {
             // Input is longer than target
-            spans.push(Span::styled(ch.to_string(), Style::default().fg(scheme.error)));
+            spans.push(Span::styled(
+                ch.to_string(),
+                Style::default().fg(scheme.error),
+            ));
         }
     }
 

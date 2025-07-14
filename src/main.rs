@@ -90,7 +90,7 @@ fn run_typing_test(
                     (KeyCode::Char('r'), KeyModifiers::CONTROL) => {
                         app.restart();
                         restart_timer = None;
-                    },
+                    }
                     (KeyCode::BackTab, _) => app.cycle_color_scheme(),
                     (KeyCode::CapsLock, KeyModifiers::SHIFT) => app.cycle_cursor_style(),
                     (KeyCode::Char(ch), KeyModifiers::NONE) => {
@@ -98,7 +98,7 @@ fn run_typing_test(
                             restart_timer = None;
                         }
                         app.handle_char(ch);
-                    },
+                    }
                     (KeyCode::Backspace, KeyModifiers::CONTROL) => app.handle_ctrl_backspace(),
                     (KeyCode::Char('w'), KeyModifiers::CONTROL) => app.handle_ctrl_backspace(),
                     (KeyCode::Backspace, _) => app.handle_backspace(),

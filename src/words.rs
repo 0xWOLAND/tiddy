@@ -8,7 +8,8 @@ const COMMON_WORDS: &[&str] = &[
     "just", "know", "take", "people", "into", "year", "good", "some", "could", "them", "see",
     "other", "than", "then", "now", "look", "only", "come", "over", "think", "also", "back",
     "after", "use", "two", "how", "work", "first", "well", "way", "even", "new", "want", "because",
-    "any", "these", "give", "day", "most", "us", "was", "are", "been", "has", "had", "were", "said"
+    "any", "these", "give", "day", "most", "us", "was", "are", "been", "has", "had", "were",
+    "said",
 ];
 
 pub fn generate_words(count: usize) -> Vec<String> {

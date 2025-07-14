@@ -15,7 +15,7 @@ pub struct App {
 impl App {
     pub fn new(word_count: usize, time_limit_seconds: Option<usize>) -> Self {
         let target = words_to_text(generate_words(word_count));
-        
+
         Self {
             target,
             input: String::new(),
@@ -41,7 +41,7 @@ impl App {
             .time_limit
             .and_then(|limit| self.start_time.map(|start| start.elapsed() >= limit))
             .unwrap_or(false);
-        
+
         length_complete || time_complete
     }
 
@@ -92,7 +92,6 @@ impl App {
         self.input = chars.into_iter().collect();
     }
 
-
     pub fn cycle_color_scheme(&mut self) {
         self.scheme_index = self.scheme_index.wrapping_add(1);
     }
@@ -110,7 +109,7 @@ impl App {
                 // Test still in progress, use current time
                 start.elapsed().as_secs_f64()
             };
-            
+
             if elapsed > 0.0 {
                 (self.input.len() as f64 / 5.0) / (elapsed / 60.0)
             } else {
@@ -161,5 +160,4 @@ impl App {
             }
         }
     }
-
 }
