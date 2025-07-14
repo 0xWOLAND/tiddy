@@ -61,7 +61,9 @@ impl App {
         }
 
         // Set end time when test is completed
-        self.update_end_time();
+        if self.is_done() && self.end_time.is_none() {
+            self.end_time = Some(Instant::now());
+        }
     }
 
     pub fn handle_backspace(&mut self) {
@@ -160,14 +162,4 @@ impl App {
         }
     }
 
-    fn update_end_time(&mut self) {
-        if self.is_done() && self.end_time.is_none() {
-            self.end_time = Some(Instant::now());
-        }
-    }
-
-    pub fn check_time_limit(&mut self) {
-        // Call this regularly to update end_time when time limit is reached
-        self.update_end_time();
-    }
 }
