@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 #[command(about = "A minimal typing test in the terminal")]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -29,5 +29,11 @@ impl Commands {
             Commands::Words { .. } => None,
             Commands::Time { seconds } => Some(*seconds),
         }
+    }
+}
+
+impl Default for Commands {
+    fn default() -> Self {
+        Commands::Words { count: 15 }
     }
 }

@@ -17,8 +17,9 @@ use cli::Cli;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    let word_count = cli.command.word_count();
-    let time_limit = cli.command.time_limit();
+    let command = cli.command.unwrap_or_default();
+    let word_count = command.word_count();
+    let time_limit = command.time_limit();
 
     // Setup terminal
     terminal::enable_raw_mode()?;
