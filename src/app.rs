@@ -6,6 +6,7 @@ pub struct App {
     target: String,
     input: String,
     start_time: Option<Instant>,
+    end_time: Option<Instant>,
     time_limit: Option<Duration>,
     pub scheme_index: usize,
     pub cursor_style_index: usize,
@@ -19,6 +20,7 @@ impl App {
             target,
             input: String::new(),
             start_time: None,
+            end_time: None,
             time_limit: time_limit_seconds.map(|s| Duration::from_secs(s as u64)),
             scheme_index: 0,
             cursor_style_index: 0,
@@ -30,14 +32,17 @@ impl App {
         self.target = words_to_text(generate_words(word_count));
         self.input.clear();
         self.start_time = None;
+        self.end_time = None;
     }
 
     pub fn is_done(&self) -> bool {
-        self.input.len() >= self.target.len()
-            || self
-                .time_limit
-                .and_then(|limit| self.start_time.map(|start| start.elapsed() >= limit))
-                .unwrap_or(false)
+        let length_complete = self.input.len() >= self.target.len();
+        let time_complete = self
+            .time_limit
+            .and_then(|limit| self.start_time.map(|start| start.elapsed() >= limit))
+            .unwrap_or(false);
+        
+        length_complete || time_complete
     }
 
     pub fn handle_char(&mut self, ch: char) {
@@ -54,6 +59,9 @@ impl App {
         } else {
             self.input.push(ch);
         }
+
+        // Set end time when test is completed
+        self.update_end_time();
     }
 
     pub fn handle_backspace(&mut self) {
@@ -92,16 +100,23 @@ impl App {
     }
 
     pub fn wpm(&self) -> f64 {
-        self.start_time
-            .map(|start| {
-                let elapsed = start.elapsed().as_secs_f64();
-                if elapsed > 0.0 {
-                    (self.input.len() as f64 / 5.0) / (elapsed / 60.0)
-                } else {
-                    0.0
-                }
-            })
-            .unwrap_or(0.0)
+        if let Some(start) = self.start_time {
+            let elapsed = if let Some(end) = self.end_time {
+                // Use the time when test completed, not current time
+                end.duration_since(start).as_secs_f64()
+            } else {
+                // Test still in progress, use current time
+                start.elapsed().as_secs_f64()
+            };
+            
+            if elapsed > 0.0 {
+                (self.input.len() as f64 / 5.0) / (elapsed / 60.0)
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        }
     }
 
     pub fn accuracy(&self) -> f64 {
@@ -143,5 +158,16 @@ impl App {
                 self.input.push('#');
             }
         }
+    }
+
+    fn update_end_time(&mut self) {
+        if self.is_done() && self.end_time.is_none() {
+            self.end_time = Some(Instant::now());
+        }
+    }
+
+    pub fn check_time_limit(&mut self) {
+        // Call this regularly to update end_time when time limit is reached
+        self.update_end_time();
     }
 }

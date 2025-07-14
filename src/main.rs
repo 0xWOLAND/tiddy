@@ -41,8 +41,21 @@ fn run_typing_test(
     time_limit: Option<usize>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut app = App::new(word_count, time_limit);
+    let mut restart_timer: Option<std::time::Instant> = None;
 
     loop {
+        // Calculate countdown for display
+        let countdown = if let Some(start_time) = restart_timer {
+            let elapsed = start_time.elapsed().as_secs();
+            if elapsed < 3 {
+                Some(3 - elapsed)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         terminal.draw(|frame| {
             ui::render_typing_test(
                 frame,
@@ -53,23 +66,39 @@ fn run_typing_test(
                 app.scheme_index,
                 app.cursor_style_index,
                 app.is_done(),
+                countdown,
             );
         })?;
 
-        let timeout = if app.is_done() {
-            std::time::Duration::from_secs(10) // Long timeout when done
-        } else {
-            std::time::Duration::from_millis(100) // Fast updates during typing
-        };
+        if app.is_done() && restart_timer.is_none() {
+            restart_timer = Some(std::time::Instant::now());
+        }
+
+        if let Some(start_time) = restart_timer {
+            if start_time.elapsed() >= std::time::Duration::from_secs(3) {
+                app.restart();
+                restart_timer = None;
+            }
+        }
+
+        let timeout = std::time::Duration::from_millis(100);
 
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
                 match (key.code, key.modifiers) {
                     (KeyCode::Esc, _) => break,
-                    (KeyCode::Char('r'), KeyModifiers::CONTROL) => app.restart(),
+                    (KeyCode::Char('r'), KeyModifiers::CONTROL) => {
+                        app.restart();
+                        restart_timer = None;
+                    },
                     (KeyCode::BackTab, _) => app.cycle_color_scheme(),
                     (KeyCode::CapsLock, KeyModifiers::SHIFT) => app.cycle_cursor_style(),
-                    (KeyCode::Char(ch), KeyModifiers::NONE) => app.handle_char(ch),
+                    (KeyCode::Char(ch), KeyModifiers::NONE) => {
+                        if app.is_done() {
+                            restart_timer = None;
+                        }
+                        app.handle_char(ch);
+                    },
                     (KeyCode::Backspace, KeyModifiers::CONTROL) => app.handle_ctrl_backspace(),
                     (KeyCode::Char('w'), KeyModifiers::CONTROL) => app.handle_ctrl_backspace(),
                     (KeyCode::Backspace, _) => app.handle_backspace(),

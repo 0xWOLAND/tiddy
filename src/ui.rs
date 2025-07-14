@@ -87,6 +87,7 @@ pub fn render_typing_test<B: Backend>(
     scheme_index: usize,
     cursor_style_index: usize,
     is_done: bool,
+    restart_countdown: Option<u64>,
 ) {
     let scheme = ColorScheme::get(scheme_index);
     
@@ -143,10 +144,12 @@ pub fn render_typing_test<B: Backend>(
     );
 
     // Help
-    let help = if is_done {
-        "Ctrl+R restart | Esc quit"
+    let help = if let Some(countdown) = restart_countdown {
+        format!("Auto-restart in {}s (any key to cancel) | Ctrl+R restart | Esc quit", countdown)
+    } else if is_done {
+        "Test complete | Ctrl+R restart | Esc quit".to_string()
     } else {
-        "Ctrl+R restart | Shift+Tab colors | Shift+CapsLock cursor | Esc quit"
+        "Ctrl+R restart | Shift+Tab colors | Shift+CapsLock cursor | Esc quit".to_string()
     };
     frame.render_widget(
         Paragraph::new(help)
