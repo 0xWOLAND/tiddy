@@ -26,6 +26,19 @@ enum Section {
     CursorStyle,
 }
 
+trait Filterable {
+    fn filter(&self, query: &str) -> Vec<String>;
+    fn len(&self) -> usize;
+}
+
+impl Filterable for Vec<String> {
+    fn filter(&self, query: &str) -> Vec<String> {
+        if query.is_empty() { return self.clone(); }
+        self.iter().filter(|item| item.to_lowercase().contains(&query.to_lowercase())).cloned().collect()
+    }
+    fn len(&self) -> usize { self.len() }
+}
+
 impl Section {
     const ALL: [Section; 3] = [Section::WordList, Section::ColorScheme, Section::CursorStyle];
 }
@@ -41,6 +54,7 @@ pub struct PopupManager {
     word_lists: Vec<String>,
     color_schemes: Vec<String>,
     cursor_styles: Vec<String>,
+    filter: String,
 }
 
 impl Default for PopupManager {
@@ -66,6 +80,7 @@ impl Default for PopupManager {
             word_lists,
             color_schemes: vec!["gruvbox".to_string(), "dracula".to_string(), "nord".to_string(), "solarized".to_string()],
             cursor_styles: vec!["underline".to_string(), "block".to_string(), "default".to_string()],
+            filter: String::new(),
         }
     }
 }
@@ -114,10 +129,12 @@ impl PopupManager {
             }
             KeyCode::Right => {
                 self.next_section();
+                self.filter.clear();
                 PopupAction::None
             }
             KeyCode::Left => {
                 self.prev_section();
+                self.filter.clear();
                 PopupAction::None
             }
             KeyCode::Up => {
@@ -129,13 +146,24 @@ impl PopupManager {
                 PopupAction::None
             }
             KeyCode::Enter => {
+                let filtered = self.current_filtered();
                 let action = match self.current_section {
-                    Section::WordList => PopupAction::SelectWordList(self.word_lists[self.word_list_selected].clone()),
-                    Section::ColorScheme => PopupAction::SelectColorScheme(self.color_scheme_selected),
-                    Section::CursorStyle => PopupAction::SelectCursorStyle(self.cursor_style_selected),
+                    Section::WordList => PopupAction::SelectWordList(filtered[self.word_list_selected].clone()),
+                    Section::ColorScheme => PopupAction::SelectColorScheme(self.color_schemes.iter().position(|x| x == &filtered[self.color_scheme_selected]).unwrap_or(0)),
+                    Section::CursorStyle => PopupAction::SelectCursorStyle(self.cursor_styles.iter().position(|x| x == &filtered[self.cursor_style_selected]).unwrap_or(0)),
                 };
                 self.close();
                 action
+            }
+            KeyCode::Backspace => {
+                self.filter.pop();
+                self.reset_selection();
+                PopupAction::None
+            }
+            KeyCode::Char(c) => {
+                self.filter.push(c);
+                self.reset_selection();
+                PopupAction::None
             }
             _ => PopupAction::None,
         }
@@ -172,24 +200,44 @@ impl PopupManager {
         }
     }
 
-    fn move_down(&mut self) {
+    fn reset_selection(&mut self) {
         match self.current_section {
             Section::WordList => {
-                if self.word_list_selected < self.word_lists.len() - 1 {
+                self.word_list_selected = 0;
+                self.word_list_visible_start = 0;
+            }
+            Section::ColorScheme => self.color_scheme_selected = 0,
+            Section::CursorStyle => self.cursor_style_selected = 0,
+        }
+    }
+
+    fn move_down(&mut self) {
+        let filtered_len = self.current_filtered().len();
+        match self.current_section {
+            Section::WordList => {
+                if self.word_list_selected < filtered_len - 1 {
                     self.word_list_selected += 1;
                     self.update_word_list_scroll();
                 }
             }
             Section::ColorScheme => {
-                if self.color_scheme_selected < self.color_schemes.len() - 1 {
+                if self.color_scheme_selected < filtered_len - 1 {
                     self.color_scheme_selected += 1;
                 }
             }
             Section::CursorStyle => {
-                if self.cursor_style_selected < self.cursor_styles.len() - 1 {
+                if self.cursor_style_selected < filtered_len - 1 {
                     self.cursor_style_selected += 1;
                 }
             }
+        }
+    }
+
+    fn current_filtered(&self) -> Vec<String> {
+        match self.current_section {
+            Section::WordList => self.word_lists.filter(&self.filter),
+            Section::ColorScheme => self.color_schemes.filter(&self.filter),
+            Section::CursorStyle => self.cursor_styles.filter(&self.filter),
         }
     }
 
@@ -228,8 +276,12 @@ impl PopupManager {
     }
 
     fn render_word_list<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
-        const VISIBLE_COUNT: usize = 5;
-        let visible_items = &self.word_lists[self.word_list_visible_start..(self.word_list_visible_start + VISIBLE_COUNT).min(self.word_lists.len())];
+        let filtered = if matches!(self.current_section, Section::WordList) {
+            self.word_lists.filter(&self.filter)
+        } else {
+            self.word_lists.clone()
+        };
+        let visible_items = &filtered[self.word_list_visible_start..(self.word_list_visible_start + 5).min(filtered.len())];
         let downloaded_langs = downloaded();
         let is_selected = matches!(self.current_section, Section::WordList);
 
@@ -245,41 +297,45 @@ impl PopupManager {
             ListItem::new(Line::from(Span::styled(text, style)))
         }).collect();
 
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title(format!("Word Lists ({}/{})", self.word_list_selected + 1, self.word_lists.len())).border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) }));
-
-        frame.render_widget(list, area);
+        let title = if is_selected && !self.filter.is_empty() { format!("Word Lists ({}/{}) [{}]", self.word_list_selected + 1, filtered.len(), self.filter) } else { format!("Word Lists ({}/{})", self.word_list_selected + 1, filtered.len()) };
+        frame.render_widget(List::new(items).block(Block::default().borders(Borders::ALL).title(title).border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) })), area);
     }
 
 
     fn render_color_scheme_list<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
         let is_selected = matches!(self.current_section, Section::ColorScheme);
-        let items: Vec<ListItem> = self.color_schemes.iter().enumerate().map(|(i, scheme)| {
+        let filtered = if is_selected {
+            self.color_schemes.filter(&self.filter)
+        } else {
+            self.color_schemes.clone()
+        };
+        let items: Vec<ListItem> = filtered.iter().enumerate().map(|(i, scheme)| {
             let style = if i == self.color_scheme_selected && is_selected {
                 Style::default().bg(Color::Blue).fg(Color::White)
             } else { Style::default() };
             ListItem::new(Line::from(Span::styled(scheme, style)))
         }).collect();
 
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Color Schemes").border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) }));
-
-        frame.render_widget(list, area);
+        let title = if is_selected && !self.filter.is_empty() { format!("Color Schemes [{}]", self.filter) } else { "Color Schemes".to_string() };
+        frame.render_widget(List::new(items).block(Block::default().borders(Borders::ALL).title(title).border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) })), area);
     }
 
     fn render_cursor_style_list<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
         let is_selected = matches!(self.current_section, Section::CursorStyle);
-        let items: Vec<ListItem> = self.cursor_styles.iter().enumerate().map(|(i, style)| {
+        let filtered = if is_selected {
+            self.cursor_styles.filter(&self.filter)
+        } else {
+            self.cursor_styles.clone()
+        };
+        let items: Vec<ListItem> = filtered.iter().enumerate().map(|(i, style)| {
             let style_config = if i == self.cursor_style_selected && is_selected {
                 Style::default().bg(Color::Blue).fg(Color::White)
             } else { Style::default() };
             ListItem::new(Line::from(Span::styled(style, style_config)))
         }).collect();
 
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Cursor Styles").border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) }));
-
-        frame.render_widget(list, area);
+        let title = if is_selected && !self.filter.is_empty() { format!("Cursor Styles [{}]", self.filter) } else { "Cursor Styles".to_string() };
+        frame.render_widget(List::new(items).block(Block::default().borders(Borders::ALL).title(title).border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) })), area);
     }
 }
 
