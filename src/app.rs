@@ -121,25 +121,22 @@ impl App {
         if self.input.is_empty() {
             100.0
         } else {
-            // Count only characters that were actually typed (not '#')
-            let mut typed_count = 0;
+            let mut total_count = 0;
             let mut correct_count = 0;
 
             for (i, input_ch) in self.input.chars().enumerate() {
-                if input_ch != '#' {
-                    typed_count += 1;
-                    if let Some(target_ch) = self.target.chars().nth(i) {
-                        if input_ch == target_ch {
-                            correct_count += 1;
-                        }
+                total_count += 1;
+                if let Some(target_ch) = self.target.chars().nth(i) {
+                    if input_ch == target_ch {
+                        correct_count += 1;
                     }
                 }
             }
 
-            if typed_count == 0 {
+            if total_count == 0 {
                 100.0
             } else {
-                (correct_count as f64 / typed_count as f64) * 100.0
+                (correct_count as f64 / total_count as f64) * 100.0
             }
         }
     }

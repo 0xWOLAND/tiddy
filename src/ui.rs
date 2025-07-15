@@ -173,7 +173,7 @@ pub fn render_typing_test<B: Backend>(frame: &mut Frame<B>, config: RenderConfig
     } else if config.is_done {
         "Test complete | Ctrl+R restart | Esc quit".to_string()
     } else {
-        "Ctrl+R restart | Shift+Tab colors | Ctrl+I cursor | Ctrl+L language | Esc quit".to_string()
+        "Ctrl+R restart | Esc quit".to_string()
     };
     frame.render_widget(
         Paragraph::new(help)

@@ -9,7 +9,7 @@ A minimal typing test in the terminal. Written in Rust, as usual.
 ## to run it 
 
 ```bash
-cargo install --path .
+cargo install tiddy
 ```
 
 Or run directly:
