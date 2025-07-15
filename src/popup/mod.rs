@@ -8,7 +8,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::words::{languages, downloaded};
+use crate::words::{downloaded, languages};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PopupAction {
@@ -28,19 +28,26 @@ enum Section {
 
 trait Filterable {
     fn filter(&self, query: &str) -> Vec<String>;
-    fn len(&self) -> usize;
 }
 
 impl Filterable for Vec<String> {
     fn filter(&self, query: &str) -> Vec<String> {
-        if query.is_empty() { return self.clone(); }
-        self.iter().filter(|item| item.to_lowercase().contains(&query.to_lowercase())).cloned().collect()
+        if query.is_empty() {
+            return self.clone();
+        }
+        self.iter()
+            .filter(|item| item.to_lowercase().contains(&query.to_lowercase()))
+            .cloned()
+            .collect()
     }
-    fn len(&self) -> usize { self.len() }
 }
 
 impl Section {
-    const ALL: [Section; 3] = [Section::WordList, Section::ColorScheme, Section::CursorStyle];
+    const ALL: [Section; 3] = [
+        Section::WordList,
+        Section::ColorScheme,
+        Section::CursorStyle,
+    ];
 }
 
 #[derive(Debug)]
@@ -61,15 +68,15 @@ impl Default for PopupManager {
     fn default() -> Self {
         let downloaded_langs = downloaded();
         let mut available = languages();
-        
+
         // Remove downloaded languages from available list
         available.retain(|lang| !downloaded_langs.contains(lang));
-        
+
         // Combine default word lists with downloaded first, then available
         let mut word_lists = vec!["english.json".to_string(), "english_10k.json".to_string()];
         word_lists.extend(downloaded_langs);
         word_lists.extend(available);
-        
+
         Self {
             is_open: false,
             current_section: Section::WordList,
@@ -78,8 +85,17 @@ impl Default for PopupManager {
             color_scheme_selected: 0,
             cursor_style_selected: 0,
             word_lists,
-            color_schemes: vec!["gruvbox".to_string(), "dracula".to_string(), "nord".to_string(), "solarized".to_string()],
-            cursor_styles: vec!["underline".to_string(), "block".to_string(), "default".to_string()],
+            color_schemes: vec![
+                "gruvbox".to_string(),
+                "dracula".to_string(),
+                "nord".to_string(),
+                "solarized".to_string(),
+            ],
+            cursor_styles: vec![
+                "underline".to_string(),
+                "block".to_string(),
+                "default".to_string(),
+            ],
             filter: String::new(),
         }
     }
@@ -101,19 +117,19 @@ impl PopupManager {
     pub fn is_open(&self) -> bool {
         self.is_open
     }
-    
+
     pub fn refresh_languages(&mut self) {
         let downloaded_langs = downloaded();
         let mut available = languages();
-        
+
         // Remove downloaded languages from available list
         available.retain(|lang| !downloaded_langs.contains(lang));
-        
+
         // Combine default word lists with downloaded first, then available
         let mut word_lists = vec!["english.json".to_string(), "english_10k.json".to_string()];
         word_lists.extend(downloaded_langs);
         word_lists.extend(available);
-        
+
         self.word_lists = word_lists;
     }
 
@@ -148,9 +164,21 @@ impl PopupManager {
             KeyCode::Enter => {
                 let filtered = self.current_filtered();
                 let action = match self.current_section {
-                    Section::WordList => PopupAction::SelectWordList(filtered[self.word_list_selected].clone()),
-                    Section::ColorScheme => PopupAction::SelectColorScheme(self.color_schemes.iter().position(|x| x == &filtered[self.color_scheme_selected]).unwrap_or(0)),
-                    Section::CursorStyle => PopupAction::SelectCursorStyle(self.cursor_styles.iter().position(|x| x == &filtered[self.cursor_style_selected]).unwrap_or(0)),
+                    Section::WordList => {
+                        PopupAction::SelectWordList(filtered[self.word_list_selected].clone())
+                    }
+                    Section::ColorScheme => PopupAction::SelectColorScheme(
+                        self.color_schemes
+                            .iter()
+                            .position(|x| x == &filtered[self.color_scheme_selected])
+                            .unwrap_or(0),
+                    ),
+                    Section::CursorStyle => PopupAction::SelectCursorStyle(
+                        self.cursor_styles
+                            .iter()
+                            .position(|x| x == &filtered[self.cursor_style_selected])
+                            .unwrap_or(0),
+                    ),
                 };
                 self.close();
                 action
@@ -170,13 +198,20 @@ impl PopupManager {
     }
 
     fn next_section(&mut self) {
-        let current_index = Section::ALL.iter().position(|&t| t == self.current_section).unwrap();
+        let current_index = Section::ALL
+            .iter()
+            .position(|&t| t == self.current_section)
+            .unwrap();
         self.current_section = Section::ALL[(current_index + 1) % Section::ALL.len()];
     }
 
     fn prev_section(&mut self) {
-        let current_index = Section::ALL.iter().position(|&t| t == self.current_section).unwrap();
-        self.current_section = Section::ALL[(current_index + Section::ALL.len() - 1) % Section::ALL.len()];
+        let current_index = Section::ALL
+            .iter()
+            .position(|&t| t == self.current_section)
+            .unwrap();
+        self.current_section =
+            Section::ALL[(current_index + Section::ALL.len() - 1) % Section::ALL.len()];
     }
 
     fn move_up(&mut self) {
@@ -259,7 +294,9 @@ impl PopupManager {
         frame.render_widget(Clear, popup_area);
 
         let block = Block::default()
-            .title("Settings (←/→ to switch sections, ↑/↓ to navigate, Enter to select, Esc to close)")
+            .title(
+                "Settings (←/→ to switch sections, ↑/↓ to navigate, Enter to select, Esc to close)",
+            )
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Blue));
 
@@ -267,7 +304,11 @@ impl PopupManager {
 
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(33), Constraint::Percentage(33), Constraint::Percentage(33)])
+            .constraints([
+                Constraint::Percentage(33),
+                Constraint::Percentage(33),
+                Constraint::Percentage(33),
+            ])
             .split(popup_area.inner(&Margin::new(1, 1)));
 
         self.render_word_list(frame, chunks[0]);
@@ -281,26 +322,63 @@ impl PopupManager {
         } else {
             self.word_lists.clone()
         };
-        let visible_items = &filtered[self.word_list_visible_start..(self.word_list_visible_start + 5).min(filtered.len())];
+        let visible_items = &filtered
+            [self.word_list_visible_start..(self.word_list_visible_start + 5).min(filtered.len())];
         let downloaded_langs = downloaded();
         let is_selected = matches!(self.current_section, Section::WordList);
 
-        let items: Vec<ListItem> = visible_items.iter().enumerate().map(|(i, item)| {
-            let actual_index = self.word_list_visible_start + i;
-            let is_downloaded = downloaded_langs.contains(item);
-            let style = if actual_index == self.word_list_selected && is_selected {
-                Style::default().bg(Color::Blue).fg(Color::White)
-            } else if is_downloaded { Style::default().fg(Color::Green) } else { Style::default() };
+        let items: Vec<ListItem> = visible_items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                let actual_index = self.word_list_visible_start + i;
+                let is_downloaded = downloaded_langs.contains(item);
+                let style = if actual_index == self.word_list_selected && is_selected {
+                    Style::default().bg(Color::Blue).fg(Color::White)
+                } else if is_downloaded {
+                    Style::default().fg(Color::Green)
+                } else {
+                    Style::default()
+                };
 
-            let display_name = item.trim_end_matches(".json");
-            let text = if is_downloaded { format!("✓ {}", display_name) } else { display_name.to_string() };
-            ListItem::new(Line::from(Span::styled(text, style)))
-        }).collect();
+                let display_name = item.trim_end_matches(".json");
+                let text = if is_downloaded {
+                    format!("✓ {display_name}")
+                } else {
+                    display_name.to_string()
+                };
+                ListItem::new(Line::from(Span::styled(text, style)))
+            })
+            .collect();
 
-        let title = if is_selected && !self.filter.is_empty() { format!("Word Lists ({}/{}) [{}]", self.word_list_selected + 1, filtered.len(), self.filter) } else { format!("Word Lists ({}/{})", self.word_list_selected + 1, filtered.len()) };
-        frame.render_widget(List::new(items).block(Block::default().borders(Borders::ALL).title(title).border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) })), area);
+        let title = if is_selected && !self.filter.is_empty() {
+            format!(
+                "Word Lists ({}/{}) [{}]",
+                self.word_list_selected + 1,
+                filtered.len(),
+                self.filter
+            )
+        } else {
+            format!(
+                "Word Lists ({}/{})",
+                self.word_list_selected + 1,
+                filtered.len()
+            )
+        };
+        frame.render_widget(
+            List::new(items).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(title)
+                    .border_style(if is_selected {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default().fg(Color::Gray)
+                    }),
+            ),
+            area,
+        );
     }
-
 
     fn render_color_scheme_list<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
         let is_selected = matches!(self.current_section, Section::ColorScheme);
@@ -309,15 +387,37 @@ impl PopupManager {
         } else {
             self.color_schemes.clone()
         };
-        let items: Vec<ListItem> = filtered.iter().enumerate().map(|(i, scheme)| {
-            let style = if i == self.color_scheme_selected && is_selected {
-                Style::default().bg(Color::Blue).fg(Color::White)
-            } else { Style::default() };
-            ListItem::new(Line::from(Span::styled(scheme, style)))
-        }).collect();
+        let items: Vec<ListItem> = filtered
+            .iter()
+            .enumerate()
+            .map(|(i, scheme)| {
+                let style = if i == self.color_scheme_selected && is_selected {
+                    Style::default().bg(Color::Blue).fg(Color::White)
+                } else {
+                    Style::default()
+                };
+                ListItem::new(Line::from(Span::styled(scheme, style)))
+            })
+            .collect();
 
-        let title = if is_selected && !self.filter.is_empty() { format!("Color Schemes [{}]", self.filter) } else { "Color Schemes".to_string() };
-        frame.render_widget(List::new(items).block(Block::default().borders(Borders::ALL).title(title).border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) })), area);
+        let title = if is_selected && !self.filter.is_empty() {
+            format!("Color Schemes [{}]", self.filter)
+        } else {
+            "Color Schemes".to_string()
+        };
+        frame.render_widget(
+            List::new(items).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(title)
+                    .border_style(if is_selected {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default().fg(Color::Gray)
+                    }),
+            ),
+            area,
+        );
     }
 
     fn render_cursor_style_list<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
@@ -327,15 +427,37 @@ impl PopupManager {
         } else {
             self.cursor_styles.clone()
         };
-        let items: Vec<ListItem> = filtered.iter().enumerate().map(|(i, style)| {
-            let style_config = if i == self.cursor_style_selected && is_selected {
-                Style::default().bg(Color::Blue).fg(Color::White)
-            } else { Style::default() };
-            ListItem::new(Line::from(Span::styled(style, style_config)))
-        }).collect();
+        let items: Vec<ListItem> = filtered
+            .iter()
+            .enumerate()
+            .map(|(i, style)| {
+                let style_config = if i == self.cursor_style_selected && is_selected {
+                    Style::default().bg(Color::Blue).fg(Color::White)
+                } else {
+                    Style::default()
+                };
+                ListItem::new(Line::from(Span::styled(style, style_config)))
+            })
+            .collect();
 
-        let title = if is_selected && !self.filter.is_empty() { format!("Cursor Styles [{}]", self.filter) } else { "Cursor Styles".to_string() };
-        frame.render_widget(List::new(items).block(Block::default().borders(Borders::ALL).title(title).border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) })), area);
+        let title = if is_selected && !self.filter.is_empty() {
+            format!("Cursor Styles [{}]", self.filter)
+        } else {
+            "Cursor Styles".to_string()
+        };
+        frame.render_widget(
+            List::new(items).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(title)
+                    .border_style(if is_selected {
+                        Style::default().fg(Color::Yellow)
+                    } else {
+                        Style::default().fg(Color::Gray)
+                    }),
+            ),
+            area,
+        );
     }
 }
 

@@ -1,8 +1,8 @@
-use std::time::{Duration, Instant};
 use rand::seq::SliceRandom;
+use std::time::{Duration, Instant};
 
-use crate::popup::{PopupManager, PopupAction};
-use crate::words::{generate_words, download};
+use crate::popup::{PopupAction, PopupManager};
+use crate::words::{download, generate_words};
 
 #[derive(Debug)]
 pub struct App {
@@ -97,7 +97,6 @@ impl App {
         self.input = chars.into_iter().collect();
     }
 
-
     pub fn wpm(&self) -> f64 {
         if let Some(start) = self.start_time {
             let elapsed = if let Some(end) = self.end_time {
@@ -161,10 +160,13 @@ impl App {
         match self.popup_manager.handle_key(key_code) {
             PopupAction::SelectWordList(selected) => {
                 let word_count = self.target.split_whitespace().count();
-                
+
                 // Try to download the language file first
                 if let Ok(words) = download(&selected).await {
-                    let sampled_words: Vec<String> = words.choose_multiple(&mut rand::thread_rng(), word_count).cloned().collect();
+                    let sampled_words: Vec<String> = words
+                        .choose_multiple(&mut rand::thread_rng(), word_count)
+                        .cloned()
+                        .collect();
                     self.target = sampled_words.join(" ");
                     self.input.clear();
                     self.start_time = None;
