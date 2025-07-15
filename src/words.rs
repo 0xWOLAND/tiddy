@@ -1,25 +1,27 @@
 use rand::seq::SliceRandom;
+use serde::Deserialize;
+use std::fs;
 
-const COMMON_WORDS: &[&str] = &[
-    "the", "be", "to", "of", "and", "a", "in", "that", "have", "it", "for", "not", "on", "with",
-    "he", "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we", "say", "her",
-    "she", "or", "an", "will", "my", "one", "all", "would", "there", "what", "so", "up", "out",
-    "if", "about", "who", "get", "which", "go", "me", "when", "make", "can", "like", "time", "no",
-    "just", "know", "take", "people", "into", "year", "good", "some", "could", "them", "see",
-    "other", "than", "then", "now", "look", "only", "come", "over", "think", "also", "back",
-    "after", "use", "two", "how", "work", "first", "well", "way", "even", "new", "want", "because",
-    "any", "these", "give", "day", "most", "us", "was", "are", "been", "has", "had", "were",
-    "said",
-];
-
-pub fn generate_words(count: usize) -> Vec<String> {
-    let mut rng = rand::thread_rng();
-    COMMON_WORDS
-        .choose_multiple(&mut rng, count)
-        .map(|&word| word.to_owned())
-        .collect()
+#[derive(Deserialize)]
+struct WordList {
+    words: Vec<String>,
 }
 
-pub fn words_to_text(words: Vec<String>) -> String {
-    words.join(" ")
+fn load_words_from_file(filename: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let path = format!("words/{}", filename);
+    let content = fs::read_to_string(&path)?;
+    let word_list: WordList = serde_json::from_str(&content)?;
+    Ok(word_list.words)
+}
+
+pub fn generate_words(count: usize, word_list: Option<&str>) -> Vec<String> {
+    let filename = word_list.unwrap_or("english.json");
+    let words = load_words_from_file(filename)
+        .unwrap_or_else(|_| vec!["the".to_string(), "quick".to_string(), "brown".to_string()]);
+    
+    let mut rng = rand::thread_rng();
+    words
+        .choose_multiple(&mut rng, count)
+        .map(|word| word.clone())
+        .collect()
 }

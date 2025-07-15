@@ -1,5 +1,6 @@
 mod app;
 mod cli;
+mod popup;
 mod ui;
 mod words;
 
@@ -68,6 +69,10 @@ fn run_typing_test(
                 app.is_done(),
                 countdown,
             );
+            
+            if let Some(popup) = &app.word_list_popup {
+                popup.render(frame, frame.size());
+            }
         })?;
 
         if app.is_done() && restart_timer.is_none() {
@@ -85,23 +90,32 @@ fn run_typing_test(
 
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
+                if app.handle_popup_key(key.code) {
+                    continue;
+                }
+                
                 match (key.code, key.modifiers) {
                     (KeyCode::Esc, _) => break,
+                    (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
+                        app.toggle_word_list_popup();
+                    }
                     (KeyCode::Char('r'), KeyModifiers::CONTROL) => {
                         app.restart();
                         restart_timer = None;
                     }
+                    (KeyCode::Char('h'), KeyModifiers::CONTROL) => app.handle_ctrl_backspace(), // Ctrl+Backspace in Ubuntu
+                    (KeyCode::Char('w'), KeyModifiers::CONTROL) => app.handle_ctrl_backspace(),
+                    (KeyCode::Backspace, KeyModifiers::CONTROL) => app.handle_ctrl_backspace(),
+                    (KeyCode::Delete, KeyModifiers::CONTROL) => app.handle_ctrl_backspace(),
                     (KeyCode::BackTab, _) => app.cycle_color_scheme(),
-                    (KeyCode::Char('`'), KeyModifiers::SHIFT) => app.cycle_cursor_style(),
+                    (KeyCode::Char('i'), KeyModifiers::CONTROL) => app.cycle_cursor_style(),
+                    (KeyCode::Backspace, _) => app.handle_backspace(),
                     (KeyCode::Char(ch), KeyModifiers::NONE) => {
                         if app.is_done() {
                             restart_timer = None;
                         }
                         app.handle_char(ch);
                     }
-                    (KeyCode::Backspace, KeyModifiers::CONTROL) => app.handle_ctrl_backspace(),
-                    (KeyCode::Char('w'), KeyModifiers::CONTROL) => app.handle_ctrl_backspace(),
-                    (KeyCode::Backspace, _) => app.handle_backspace(),
                     _ => {}
                 }
             }

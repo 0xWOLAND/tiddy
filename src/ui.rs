@@ -3,6 +3,7 @@ use ratatui::{prelude::*, widgets::*};
 pub struct ColorScheme {
     pub text: Color,
     pub done: Color,
+    pub skipped: Color,
     pub error: Color,
     pub accent: Color,
 }
@@ -11,29 +12,33 @@ impl ColorScheme {
     const SCHEMES: [ColorScheme; 4] = [
         // Gruvbox
         ColorScheme {
-            text: Color::Rgb(235, 219, 178),
-            done: Color::Rgb(146, 131, 116),
+            text: Color::White,
+            done: Color::Green,
+            skipped: Color::DarkGray,
             error: Color::Red,
             accent: Color::Yellow,
         },
         // Dracula
         ColorScheme {
-            text: Color::Rgb(248, 248, 242),
-            done: Color::Rgb(98, 114, 164),
+            text: Color::White,
+            done: Color::Blue,
+            skipped: Color::DarkGray,
             error: Color::Red,
             accent: Color::Cyan,
         },
         // Nord
         ColorScheme {
-            text: Color::Rgb(216, 222, 233),
-            done: Color::Rgb(143, 188, 187),
+            text: Color::White,
+            done: Color::Cyan,
+            skipped: Color::DarkGray,
             error: Color::Red,
             accent: Color::Blue,
         },
         // Solarized
         ColorScheme {
-            text: Color::Rgb(131, 148, 150),
-            done: Color::Rgb(88, 110, 117),
+            text: Color::Gray,
+            done: Color::Green,
+            skipped: Color::DarkGray,
             error: Color::Red,
             accent: Color::Blue,
         },
@@ -147,7 +152,7 @@ pub fn render_typing_test<B: Backend>(
     } else if is_done {
         "Test complete | Ctrl+R restart | Esc quit".to_string()
     } else {
-        "Ctrl+R restart | Shift+Tab colors | Shift+~ cursor | Esc quit".to_string()
+        "Ctrl+R restart | Shift+Tab colors | Ctrl+I cursor | Esc quit".to_string()
     };
     frame.render_widget(
         Paragraph::new(help)
@@ -168,19 +173,25 @@ fn create_text_spans<'a>(
     // Render typed characters
     for (i, ch) in input.chars().enumerate() {
         if let Some(target_ch) = target.chars().nth(i) {
-            let color = if ch == '#' {
-                // Show skipped characters as dimmed target characters
+            if ch == '#' {
+                // Show skipped characters with dedicated skipped color
                 spans.push(Span::styled(
                     target_ch.to_string(),
-                    Style::default().fg(scheme.text).add_modifier(Modifier::DIM),
+                    Style::default().fg(scheme.skipped),
                 ));
-                continue;
             } else if ch == target_ch {
-                scheme.done
+                // Correctly typed character
+                spans.push(Span::styled(
+                    ch.to_string(), 
+                    Style::default().fg(scheme.done)
+                ));
             } else {
-                scheme.error
-            };
-            spans.push(Span::styled(ch.to_string(), Style::default().fg(color)));
+                // Incorrectly typed character
+                spans.push(Span::styled(
+                    ch.to_string(),
+                    Style::default().fg(scheme.error),
+                ));
+            }
         } else {
             // Input is longer than target
             spans.push(Span::styled(

@@ -1,4 +1,4 @@
-# tiddy
+# `tt` (pronounced tiddy) 
 
 A minimal typing test in the terminal. Written in Rust, as usual.
 
@@ -32,3 +32,11 @@ Options:
   -h, --help  Print help
 ```
 defaults to 15 words
+
+## todo
+- [] use monkeytype language lists
+- [] quotes
+- [] plots? 
+- [] build instructions into a proper cli tool with updates
+- [] tests on different devices to make sure that it is rendering correctly
+- [] use git lfs
