@@ -1,7 +1,10 @@
+use rand::seq::SliceRandom;
 use std::time::{Duration, Instant};
 
-use crate::words::{generate_words, words_to_text};
+use crate::popup::{PopupAction, PopupManager};
+use crate::words::{download, generate_words};
 
+#[derive(Debug)]
 pub struct App {
     target: String,
     input: String,
@@ -10,26 +13,28 @@ pub struct App {
     time_limit: Option<Duration>,
     pub scheme_index: usize,
     pub cursor_style_index: usize,
+    pub popup_manager: PopupManager,
 }
 
 impl App {
     pub fn new(word_count: usize, time_limit_seconds: Option<usize>) -> Self {
-        let target = words_to_text(generate_words(word_count));
+        let target = generate_words(word_count, None);
 
         Self {
-            target,
+            target: target.join(" "),
             input: String::new(),
             start_time: None,
             end_time: None,
             time_limit: time_limit_seconds.map(|s| Duration::from_secs(s as u64)),
             scheme_index: 0,
             cursor_style_index: 0,
+            popup_manager: PopupManager::new(),
         }
     }
 
     pub fn restart(&mut self) {
         let word_count = self.target.split_whitespace().count();
-        self.target = words_to_text(generate_words(word_count));
+        self.target = generate_words(word_count, None).join(" ");
         self.input.clear();
         self.start_time = None;
         self.end_time = None;
@@ -92,14 +97,6 @@ impl App {
         self.input = chars.into_iter().collect();
     }
 
-    pub fn cycle_color_scheme(&mut self) {
-        self.scheme_index = self.scheme_index.wrapping_add(1);
-    }
-
-    pub fn cycle_cursor_style(&mut self) {
-        self.cursor_style_index = self.cursor_style_index.wrapping_add(1);
-    }
-
     pub fn wpm(&self) -> f64 {
         if let Some(start) = self.start_time {
             let elapsed = if let Some(end) = self.end_time {
@@ -155,6 +152,47 @@ impl App {
         &self.input
     }
 
+    pub fn toggle_popup(&mut self) {
+        self.popup_manager.toggle();
+    }
+
+    pub async fn handle_popup_key(&mut self, key_code: crossterm::event::KeyCode) -> bool {
+        match self.popup_manager.handle_key(key_code) {
+            PopupAction::SelectWordList(selected) => {
+                let word_count = self.target.split_whitespace().count();
+
+                // Try to download the language file first
+                if let Ok(words) = download(&selected).await {
+                    let sampled_words: Vec<String> = words
+                        .choose_multiple(&mut rand::thread_rng(), word_count)
+                        .cloned()
+                        .collect();
+                    self.target = sampled_words.join(" ");
+                    self.input.clear();
+                    self.start_time = None;
+                    self.end_time = None;
+                    self.popup_manager.refresh_languages();
+                } else {
+                    // Fall back to generate_words if download fails
+                    self.target = generate_words(word_count, Some(&selected)).join(" ");
+                    self.input.clear();
+                    self.start_time = None;
+                    self.end_time = None;
+                }
+                true
+            }
+            PopupAction::SelectColorScheme(index) => {
+                self.scheme_index = index;
+                true
+            }
+            PopupAction::SelectCursorStyle(index) => {
+                self.cursor_style_index = index;
+                true
+            }
+            PopupAction::Close | PopupAction::None => self.popup_manager.is_open(),
+        }
+    }
+
     fn handle_space(&mut self) {
         let pos = self.input.len();
 
@@ -171,5 +209,11 @@ impl App {
                 self.input.push('#');
             }
         }
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new(15, None)
     }
 }

@@ -1,60 +1,78 @@
 use ratatui::{prelude::*, widgets::*};
 
-pub struct ColorScheme {
-    pub text: Color,
-    pub done: Color,
-    pub error: Color,
-    pub accent: Color,
+pub trait ThemeColors {
+    fn text(self) -> Color;
+    fn done(self) -> Color;
+    fn skipped(self) -> Color;
+    fn error(self) -> Color;
+    fn accent(self) -> Color;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ColorScheme {
+    Gruvbox,
+    Dracula,
+    Nord,
+    Solarized,
+}
+
+impl ThemeColors for ColorScheme {
+    fn text(self) -> Color {
+        match self {
+            Self::Gruvbox | Self::Dracula | Self::Nord => Color::White,
+            Self::Solarized => Color::Gray,
+        }
+    }
+
+    fn done(self) -> Color {
+        match self {
+            Self::Gruvbox | Self::Solarized => Color::Green,
+            Self::Dracula => Color::Blue,
+            Self::Nord => Color::Cyan,
+        }
+    }
+
+    fn skipped(self) -> Color {
+        Color::DarkGray
+    }
+
+    fn error(self) -> Color {
+        Color::Red
+    }
+
+    fn accent(self) -> Color {
+        match self {
+            Self::Gruvbox => Color::Yellow,
+            Self::Dracula => Color::Cyan,
+            Self::Nord | Self::Solarized => Color::Blue,
+        }
+    }
 }
 
 impl ColorScheme {
-    const SCHEMES: [ColorScheme; 4] = [
-        // Gruvbox
-        ColorScheme {
-            text: Color::Rgb(235, 219, 178),
-            done: Color::Rgb(146, 131, 116),
-            error: Color::Red,
-            accent: Color::Yellow,
-        },
-        // Dracula
-        ColorScheme {
-            text: Color::Rgb(248, 248, 242),
-            done: Color::Rgb(98, 114, 164),
-            error: Color::Red,
-            accent: Color::Cyan,
-        },
-        // Nord
-        ColorScheme {
-            text: Color::Rgb(216, 222, 233),
-            done: Color::Rgb(143, 188, 187),
-            error: Color::Red,
-            accent: Color::Blue,
-        },
-        // Solarized
-        ColorScheme {
-            text: Color::Rgb(131, 148, 150),
-            done: Color::Rgb(88, 110, 117),
-            error: Color::Red,
-            accent: Color::Blue,
-        },
-    ];
-
-    const SCHEME_NAMES: [&'static str; 4] = ["gruvbox", "dracula", "nord", "solarized"];
-
-    pub fn get(index: usize) -> &'static ColorScheme {
-        &Self::SCHEMES[index % Self::SCHEMES.len()]
-    }
-
-    pub fn name(index: usize) -> &'static str {
-        Self::SCHEME_NAMES[index % Self::SCHEME_NAMES.len()]
+    pub fn get(index: usize) -> Self {
+        const SCHEMES: [ColorScheme; 4] = [
+            ColorScheme::Gruvbox,
+            ColorScheme::Dracula,
+            ColorScheme::Nord,
+            ColorScheme::Solarized,
+        ];
+        SCHEMES[index % SCHEMES.len()]
     }
 }
 
-#[derive(Clone, Copy)]
+impl std::fmt::Display for ColorScheme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = format!("{self:?}").to_lowercase();
+        write!(f, "{name}")
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum CursorStyle {
     Underline,
     Block,
-    Reverse,
+    Default,
 }
 
 impl CursorStyle {
@@ -62,7 +80,7 @@ impl CursorStyle {
         match self {
             CursorStyle::Underline => style.add_modifier(Modifier::UNDERLINED),
             CursorStyle::Block => style.bg(style.fg.unwrap_or(Color::White)).fg(Color::Black),
-            CursorStyle::Reverse => style.add_modifier(Modifier::REVERSED),
+            CursorStyle::Default => style,
         }
     }
 
@@ -70,27 +88,35 @@ impl CursorStyle {
         match index % 3 {
             0 => CursorStyle::Underline,
             1 => CursorStyle::Block,
-            _ => CursorStyle::Reverse,
+            _ => CursorStyle::Default,
         }
     }
 }
 
-pub fn render_typing_test<B: Backend>(
-    frame: &mut Frame<B>,
-    target: &str,
-    input: &str,
-    wpm: f64,
-    accuracy: f64,
-    scheme_index: usize,
-    cursor_style_index: usize,
-    is_done: bool,
-    restart_countdown: Option<u64>,
-) {
-    let scheme = ColorScheme::get(scheme_index);
+impl std::fmt::Display for CursorStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = format!("{self:?}").to_lowercase();
+        write!(f, "{name}")
+    }
+}
+
+pub struct RenderConfig<'a> {
+    pub target: &'a str,
+    pub input: &'a str,
+    pub wpm: f64,
+    pub accuracy: f64,
+    pub scheme_index: usize,
+    pub cursor_style_index: usize,
+    pub is_done: bool,
+    pub restart_countdown: Option<u64>,
+}
+
+pub fn render_typing_test<B: Backend>(frame: &mut Frame<B>, config: RenderConfig) {
+    let scheme = ColorScheme::get(config.scheme_index);
 
     // Create centered layout
     let area = frame.size();
-    let content_width = (area.width.min(80)).max(40); // Max 80 chars, min 40 chars
+    let content_width = area.width.clamp(40, 80); // Max 80 chars, min 40 chars
     let horizontal_margin = (area.width.saturating_sub(content_width)) / 2;
 
     let vertical_chunks = Layout::default()
@@ -118,19 +144,22 @@ pub fn render_typing_test<B: Backend>(
     // Title
     let title = format!(
         "tiddy ({}) | wpm: {:.0} | acc: {:.0}%",
-        ColorScheme::name(scheme_index),
-        wpm,
-        accuracy
+        scheme, config.wpm, config.accuracy
     );
     frame.render_widget(
         Paragraph::new(title)
-            .fg(scheme.accent)
+            .fg(scheme.accent())
             .alignment(Alignment::Center),
         centered_chunks[0],
     );
 
     // Main text content (skip spacing chunks at index 1 and 3)
-    let spans = create_text_spans(target, input, scheme, cursor_style_index);
+    let spans = create_text_spans(
+        config.target,
+        config.input,
+        scheme,
+        config.cursor_style_index,
+    );
     frame.render_widget(
         Paragraph::new(Line::from(spans))
             .wrap(Wrap { trim: true })
@@ -139,19 +168,16 @@ pub fn render_typing_test<B: Backend>(
     );
 
     // Help
-    let help = if let Some(countdown) = restart_countdown {
-        format!(
-            "Auto-restart in {}s (any key to cancel) | Ctrl+R restart | Esc quit",
-            countdown
-        )
-    } else if is_done {
+    let help = if let Some(countdown) = config.restart_countdown {
+        format!("Auto-restart in {countdown}s (any key to cancel) | Ctrl+R restart | Esc quit")
+    } else if config.is_done {
         "Test complete | Ctrl+R restart | Esc quit".to_string()
     } else {
-        "Ctrl+R restart | Shift+Tab colors | Shift+~ cursor | Esc quit".to_string()
+        "Ctrl+R restart | Shift+Tab colors | Ctrl+I cursor | Ctrl+L language | Esc quit".to_string()
     };
     frame.render_widget(
         Paragraph::new(help)
-            .fg(scheme.text)
+            .fg(scheme.text())
             .alignment(Alignment::Center),
         centered_chunks[4],
     );
@@ -160,7 +186,7 @@ pub fn render_typing_test<B: Backend>(
 fn create_text_spans<'a>(
     target: &'a str,
     input: &'a str,
-    scheme: &ColorScheme,
+    scheme: ColorScheme,
     cursor_style_index: usize,
 ) -> Vec<Span<'a>> {
     let mut spans = Vec::new();
@@ -168,24 +194,30 @@ fn create_text_spans<'a>(
     // Render typed characters
     for (i, ch) in input.chars().enumerate() {
         if let Some(target_ch) = target.chars().nth(i) {
-            let color = if ch == '#' {
-                // Show skipped characters as dimmed target characters
+            if ch == '#' {
+                // Show skipped characters with dedicated skipped color
                 spans.push(Span::styled(
                     target_ch.to_string(),
-                    Style::default().fg(scheme.text).add_modifier(Modifier::DIM),
+                    Style::default().fg(scheme.skipped()),
                 ));
-                continue;
             } else if ch == target_ch {
-                scheme.done
+                // Correctly typed character
+                spans.push(Span::styled(
+                    ch.to_string(),
+                    Style::default().fg(scheme.done()),
+                ));
             } else {
-                scheme.error
-            };
-            spans.push(Span::styled(ch.to_string(), Style::default().fg(color)));
+                // Incorrectly typed character
+                spans.push(Span::styled(
+                    ch.to_string(),
+                    Style::default().fg(scheme.error()),
+                ));
+            }
         } else {
             // Input is longer than target
             spans.push(Span::styled(
                 ch.to_string(),
-                Style::default().fg(scheme.error),
+                Style::default().fg(scheme.error()),
             ));
         }
     }
@@ -194,10 +226,10 @@ fn create_text_spans<'a>(
     for (i, ch) in target.chars().enumerate().skip(input.len()) {
         let style = if i == input.len() {
             // Cursor position
-            let base_style = Style::default().fg(scheme.accent);
+            let base_style = Style::default().fg(scheme.accent());
             CursorStyle::cycle(cursor_style_index).apply(base_style)
         } else {
-            Style::default().fg(scheme.text)
+            Style::default().fg(scheme.text())
         };
         spans.push(Span::styled(ch.to_string(), style));
     }
