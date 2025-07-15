@@ -10,6 +10,9 @@ repository = "https://github.com/0xWOLAND/tiddy"
 keywords = ["typing", "test", "terminal", "cli", "tui"]
 categories = ["command-line-utilities", "games"]
 
+[lints.clippy]
+all = "deny"
+
 [dependencies]
 ratatui = "0.23"
 crossterm = "0.27"

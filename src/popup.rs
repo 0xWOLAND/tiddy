@@ -7,6 +7,7 @@ use ratatui::{
     Frame,
 };
 
+#[derive(Debug, Clone)]
 pub struct WordListPopup {
     pub selected: usize,
     pub word_lists: Vec<String>,

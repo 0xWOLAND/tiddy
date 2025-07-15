@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use crate::popup::WordListPopup;
 use crate::words::generate_words;
 
+#[derive(Debug, Clone)]
 pub struct App {
     target: String,
     input: String,
@@ -16,7 +17,7 @@ pub struct App {
 
 impl App {
     pub fn new(word_count: usize, time_limit_seconds: Option<usize>) -> Self {
-        let target = generate_words(word_count, Some("english.json"));
+        let target = generate_words(word_count, None);
 
         Self {
             target: target.join(" "),
@@ -32,7 +33,7 @@ impl App {
 
     pub fn restart(&mut self) {
         let word_count = self.target.split_whitespace().count();
-        self.target = generate_words(word_count, Some("english.json")).join(" ");
+        self.target = generate_words(word_count, None).join(" ");
         self.input.clear();
         self.start_time = None;
         self.end_time = None;
@@ -208,5 +209,11 @@ impl App {
                 self.input.push('#');
             }
         }
+    }
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new(15, None)
     }
 }

@@ -60,14 +60,16 @@ fn run_typing_test(
         terminal.draw(|frame| {
             ui::render_typing_test(
                 frame,
-                app.target(),
-                app.input(),
-                app.wpm(),
-                app.accuracy(),
-                app.scheme_index,
-                app.cursor_style_index,
-                app.is_done(),
-                countdown,
+                ui::RenderConfig {
+                    target: app.target(),
+                    input: app.input(),
+                    wpm: app.wpm(),
+                    accuracy: app.accuracy(),
+                    scheme_index: app.scheme_index,
+                    cursor_style_index: app.cursor_style_index,
+                    is_done: app.is_done(),
+                    restart_countdown: countdown,
+                },
             );
 
             if let Some(popup) = &app.word_list_popup {
