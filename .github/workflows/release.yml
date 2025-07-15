@@ -23,3 +23,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: target/release/tiddy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
