@@ -207,7 +207,7 @@ impl PopupManager {
             return;
         }
 
-        let popup_area = centered_rect(70, 30, area);
+        let popup_area = centered_rect(50, 12, area);
         frame.render_widget(Clear, popup_area);
 
         let block = Block::default()
@@ -217,13 +217,11 @@ impl PopupManager {
 
         frame.render_widget(block, popup_area);
 
-        let inner = popup_area.inner(&Margin::new(1, 1));
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(25), Constraint::Percentage(25)])
-            .split(inner);
+            .constraints([Constraint::Percentage(33), Constraint::Percentage(33), Constraint::Percentage(33)])
+            .split(popup_area.inner(&Margin::new(1, 1)));
 
-        // Render all sections
         self.render_word_list(frame, chunks[0]);
         self.render_color_scheme_list(frame, chunks[1]);
         self.render_cursor_style_list(frame, chunks[2]);
@@ -231,44 +229,24 @@ impl PopupManager {
 
     fn render_word_list<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
         const VISIBLE_COUNT: usize = 5;
-        let visible_end = (self.word_list_visible_start + VISIBLE_COUNT).min(self.word_lists.len());
-        let visible_items = &self.word_lists[self.word_list_visible_start..visible_end];
+        let visible_items = &self.word_lists[self.word_list_visible_start..(self.word_list_visible_start + VISIBLE_COUNT).min(self.word_lists.len())];
         let downloaded_langs = downloaded();
         let is_selected = matches!(self.current_section, Section::WordList);
 
-        let items: Vec<ListItem> = visible_items
-            .iter()
-            .enumerate()
-            .map(|(i, item)| {
-                let actual_index = self.word_list_visible_start + i;
-                let is_downloaded = downloaded_langs.contains(item);
-                let style = if actual_index == self.word_list_selected && is_selected {
-                    Style::default().bg(Color::Blue).fg(Color::White)
-                } else if is_downloaded {
-                    Style::default().fg(Color::Green)
-                } else {
-                    Style::default()
-                };
+        let items: Vec<ListItem> = visible_items.iter().enumerate().map(|(i, item)| {
+            let actual_index = self.word_list_visible_start + i;
+            let is_downloaded = downloaded_langs.contains(item);
+            let style = if actual_index == self.word_list_selected && is_selected {
+                Style::default().bg(Color::Blue).fg(Color::White)
+            } else if is_downloaded { Style::default().fg(Color::Green) } else { Style::default() };
 
-                let display_name = item.trim_end_matches(".json");
-                let text = if is_downloaded {
-                    format!("✓ {}", display_name)
-                } else {
-                    display_name.to_string()
-                };
-                ListItem::new(Line::from(Span::styled(text, style)))
-            })
-            .collect();
-
-        let border_style = if is_selected {
-            Style::default().fg(Color::Yellow)
-        } else {
-            Style::default().fg(Color::Gray)
-        };
+            let display_name = item.trim_end_matches(".json");
+            let text = if is_downloaded { format!("✓ {}", display_name) } else { display_name.to_string() };
+            ListItem::new(Line::from(Span::styled(text, style)))
+        }).collect();
 
         let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title(format!("Word Lists ({}/{})", self.word_list_selected + 1, self.word_lists.len())).border_style(border_style))
-            .highlight_style(Style::default().bg(Color::Blue).fg(Color::White));
+            .block(Block::default().borders(Borders::ALL).title(format!("Word Lists ({}/{})", self.word_list_selected + 1, self.word_lists.len())).border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) }));
 
         frame.render_widget(list, area);
     }
@@ -276,60 +254,30 @@ impl PopupManager {
 
     fn render_color_scheme_list<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
         let is_selected = matches!(self.current_section, Section::ColorScheme);
-        let items: Vec<ListItem> = self
-            .color_schemes
-            .iter()
-            .enumerate()
-            .map(|(i, scheme)| {
-                let style = if i == self.color_scheme_selected && is_selected {
-                    Style::default().bg(Color::Blue).fg(Color::White)
-                } else {
-                    Style::default()
-                };
-
-                ListItem::new(Line::from(Span::styled(scheme, style)))
-            })
-            .collect();
-
-        let border_style = if is_selected {
-            Style::default().fg(Color::Yellow)
-        } else {
-            Style::default().fg(Color::Gray)
-        };
+        let items: Vec<ListItem> = self.color_schemes.iter().enumerate().map(|(i, scheme)| {
+            let style = if i == self.color_scheme_selected && is_selected {
+                Style::default().bg(Color::Blue).fg(Color::White)
+            } else { Style::default() };
+            ListItem::new(Line::from(Span::styled(scheme, style)))
+        }).collect();
 
         let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Color Schemes").border_style(border_style))
-            .highlight_style(Style::default().bg(Color::Blue).fg(Color::White));
+            .block(Block::default().borders(Borders::ALL).title("Color Schemes").border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) }));
 
         frame.render_widget(list, area);
     }
 
     fn render_cursor_style_list<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
         let is_selected = matches!(self.current_section, Section::CursorStyle);
-        let items: Vec<ListItem> = self
-            .cursor_styles
-            .iter()
-            .enumerate()
-            .map(|(i, style)| {
-                let style_config = if i == self.cursor_style_selected && is_selected {
-                    Style::default().bg(Color::Blue).fg(Color::White)
-                } else {
-                    Style::default()
-                };
-
-                ListItem::new(Line::from(Span::styled(style, style_config)))
-            })
-            .collect();
-
-        let border_style = if is_selected {
-            Style::default().fg(Color::Yellow)
-        } else {
-            Style::default().fg(Color::Gray)
-        };
+        let items: Vec<ListItem> = self.cursor_styles.iter().enumerate().map(|(i, style)| {
+            let style_config = if i == self.cursor_style_selected && is_selected {
+                Style::default().bg(Color::Blue).fg(Color::White)
+            } else { Style::default() };
+            ListItem::new(Line::from(Span::styled(style, style_config)))
+        }).collect();
 
         let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title("Cursor Styles").border_style(border_style))
-            .highlight_style(Style::default().bg(Color::Blue).fg(Color::White));
+            .block(Block::default().borders(Borders::ALL).title("Cursor Styles").border_style(if is_selected { Style::default().fg(Color::Yellow) } else { Style::default().fg(Color::Gray) }));
 
         frame.render_widget(list, area);
     }
