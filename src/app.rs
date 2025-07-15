@@ -1,9 +1,10 @@
 use std::time::{Duration, Instant};
+use rand::seq::SliceRandom;
 
-use crate::popup::WordListPopup;
-use crate::words::generate_words;
+use crate::popup::{PopupManager, PopupAction};
+use crate::words::{generate_words, download};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct App {
     target: String,
     input: String,
@@ -12,7 +13,7 @@ pub struct App {
     time_limit: Option<Duration>,
     pub scheme_index: usize,
     pub cursor_style_index: usize,
-    pub word_list_popup: Option<WordListPopup>,
+    pub popup_manager: PopupManager,
 }
 
 impl App {
@@ -27,7 +28,7 @@ impl App {
             time_limit: time_limit_seconds.map(|s| Duration::from_secs(s as u64)),
             scheme_index: 0,
             cursor_style_index: 0,
-            word_list_popup: None,
+            popup_manager: PopupManager::new(),
         }
     }
 
@@ -96,13 +97,6 @@ impl App {
         self.input = chars.into_iter().collect();
     }
 
-    pub fn cycle_color_scheme(&mut self) {
-        self.scheme_index = self.scheme_index.wrapping_add(1);
-    }
-
-    pub fn cycle_cursor_style(&mut self) {
-        self.cursor_style_index = self.cursor_style_index.wrapping_add(1);
-    }
 
     pub fn wpm(&self) -> f64 {
         if let Some(start) = self.start_time {
@@ -159,37 +153,41 @@ impl App {
         &self.input
     }
 
-    pub fn toggle_word_list_popup(&mut self) {
-        if self.word_list_popup.is_some() {
-            self.word_list_popup = None;
-        } else {
-            let word_lists = vec!["english.json".to_string(), "english_10k.json".to_string()];
-            self.word_list_popup = Some(WordListPopup::new(word_lists));
-        }
+    pub fn toggle_popup(&mut self) {
+        self.popup_manager.toggle();
     }
 
-    pub fn handle_popup_key(&mut self, key_code: crossterm::event::KeyCode) -> bool {
-        if let Some(popup) = &mut self.word_list_popup {
-            match key_code {
-                crossterm::event::KeyCode::Up => popup.previous(),
-                crossterm::event::KeyCode::Down => popup.next(),
-                crossterm::event::KeyCode::Enter => {
-                    let selected_list = &popup.word_lists[popup.selected];
-                    let word_count = self.target.split_whitespace().count();
-                    self.target = generate_words(word_count, Some(selected_list)).join(" ");
+    pub async fn handle_popup_key(&mut self, key_code: crossterm::event::KeyCode) -> bool {
+        match self.popup_manager.handle_key(key_code) {
+            PopupAction::SelectWordList(selected) => {
+                let word_count = self.target.split_whitespace().count();
+                
+                // Try to download the language file first
+                if let Ok(words) = download(&selected).await {
+                    let sampled_words: Vec<String> = words.choose_multiple(&mut rand::thread_rng(), word_count).cloned().collect();
+                    self.target = sampled_words.join(" ");
                     self.input.clear();
                     self.start_time = None;
                     self.end_time = None;
-                    self.word_list_popup = None;
+                    self.popup_manager.refresh_languages();
+                } else {
+                    // Fall back to generate_words if download fails
+                    self.target = generate_words(word_count, Some(&selected)).join(" ");
+                    self.input.clear();
+                    self.start_time = None;
+                    self.end_time = None;
                 }
-                crossterm::event::KeyCode::Esc => {
-                    self.word_list_popup = None;
-                }
-                _ => return false,
+                true
             }
-            true
-        } else {
-            false
+            PopupAction::SelectColorScheme(index) => {
+                self.scheme_index = index;
+                true
+            }
+            PopupAction::SelectCursorStyle(index) => {
+                self.cursor_style_index = index;
+                true
+            }
+            PopupAction::Close | PopupAction::None => self.popup_manager.is_open(),
         }
     }
 

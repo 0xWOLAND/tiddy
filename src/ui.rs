@@ -72,7 +72,7 @@ impl std::fmt::Display for ColorScheme {
 pub enum CursorStyle {
     Underline,
     Block,
-    Reverse,
+    Default,
 }
 
 impl CursorStyle {
@@ -80,7 +80,7 @@ impl CursorStyle {
         match self {
             CursorStyle::Underline => style.add_modifier(Modifier::UNDERLINED),
             CursorStyle::Block => style.bg(style.fg.unwrap_or(Color::White)).fg(Color::Black),
-            CursorStyle::Reverse => style.add_modifier(Modifier::REVERSED),
+            CursorStyle::Default => style,
         }
     }
 
@@ -88,7 +88,7 @@ impl CursorStyle {
         match index % 3 {
             0 => CursorStyle::Underline,
             1 => CursorStyle::Block,
-            _ => CursorStyle::Reverse,
+            _ => CursorStyle::Default,
         }
     }
 }
@@ -173,7 +173,7 @@ pub fn render_typing_test<B: Backend>(frame: &mut Frame<B>, config: RenderConfig
     } else if config.is_done {
         "Test complete | Ctrl+R restart | Esc quit".to_string()
     } else {
-        "Ctrl+R restart | Shift+Tab colors | Ctrl+I cursor | Esc quit".to_string()
+        "Ctrl+R restart | Shift+Tab colors | Ctrl+I cursor | Ctrl+L language | Esc quit".to_string()
     };
     frame.render_widget(
         Paragraph::new(help)
