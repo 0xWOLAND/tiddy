@@ -69,7 +69,7 @@ fn run_typing_test(
                 app.is_done(),
                 countdown,
             );
-            
+
             if let Some(popup) = &app.word_list_popup {
                 popup.render(frame, frame.size());
             }
@@ -93,7 +93,7 @@ fn run_typing_test(
                 if app.handle_popup_key(key.code) {
                     continue;
                 }
-                
+
                 match (key.code, key.modifiers) {
                     (KeyCode::Esc, _) => break,
                     (KeyCode::Char('p'), KeyModifiers::CONTROL) => {

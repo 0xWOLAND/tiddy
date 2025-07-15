@@ -145,10 +145,7 @@ pub fn render_typing_test<B: Backend>(
 
     // Help
     let help = if let Some(countdown) = restart_countdown {
-        format!(
-            "Auto-restart in {}s (any key to cancel) | Ctrl+R restart | Esc quit",
-            countdown
-        )
+        format!("Auto-restart in {countdown}s (any key to cancel) | Ctrl+R restart | Esc quit")
     } else if is_done {
         "Test complete | Ctrl+R restart | Esc quit".to_string()
     } else {
@@ -182,8 +179,8 @@ fn create_text_spans<'a>(
             } else if ch == target_ch {
                 // Correctly typed character
                 spans.push(Span::styled(
-                    ch.to_string(), 
-                    Style::default().fg(scheme.done)
+                    ch.to_string(),
+                    Style::default().fg(scheme.done),
                 ));
             } else {
                 // Incorrectly typed character

@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
-use crate::words::generate_words;
 use crate::popup::WordListPopup;
+use crate::words::generate_words;
 
 pub struct App {
     target: String,

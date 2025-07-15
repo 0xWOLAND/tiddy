@@ -34,9 +34,9 @@ impl WordListPopup {
 
     pub fn render<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
         let popup_area = centered_rect(50, 30, area);
-        
+
         frame.render_widget(Clear, popup_area);
-        
+
         let items: Vec<ListItem> = self
             .word_lists
             .iter()
@@ -47,7 +47,7 @@ impl WordListPopup {
                 } else {
                     Style::default()
                 };
-                
+
                 let name = list.trim_end_matches(".json");
                 ListItem::new(Line::from(Span::styled(name, style)))
             })
